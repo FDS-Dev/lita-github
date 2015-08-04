@@ -322,6 +322,8 @@ module Lita
         reply = nil
         begin
           octo.create_repository(repo, opts)
+        rescue
+          reply = t('repo_create.fail', org: org, repo: repo, repo_url: repo_url)
         ensure
           if repo?(full_name)
             repo_url = "https://github.com/#{full_name}"

@@ -51,6 +51,7 @@ module Lita
         # /#{LitaGithub::R::A_REG}org\s+?team\s+?add(?<org>\s+?[a-zA-Z0-9_\-]+)?(?<perm>\s+?[a-zA-Z]+)\s+?(?<name>.*)$/,
         /#{LitaGithub::R::A_REG}org\s+?team\s+?add(?<org>\s+?[a-zA-Z0-9_\-]+)?/,
         :org_team_add,
+        restrict_to: [ :admins ],
         command: true,
         confirmation: true,
         help: {
@@ -64,6 +65,7 @@ module Lita
       route(
         /#{LitaGithub::R::A_REG}org\s+?team\s+?rm(?<org>\s+?[a-zA-Z0-9_\-]+)?(?<team>\s+?[a-zA-Z0-9_\-]+)/,
         :org_team_rm,
+        restrict_to: [ :admins ],
         command: true,
         confirmation: true,
         help: {
@@ -76,6 +78,7 @@ module Lita
       route(
         /#{LitaGithub::R::A_REG}org\s+?user\s+?add(?<org>\s+?[a-zA-Z0-9_\-]+)?(?<team>\s?[a-zA-Z0-9_\-]+)\s+?(?<username>[a-zA-Z0-9_\-]+)/,
         :org_user_add,
+        restrict_to: [ :admins ],
         command: true,
         confirmation: { allow_self: false },
         help: {
@@ -87,6 +90,7 @@ module Lita
       route(
         /#{LitaGithub::R::A_REG}org\s+?user\s+?rm(?<org>\s+?[a-zA-Z0-9_\-]+)?(?<team>\s?[a-zA-Z0-9_\-]+)\s+?(?<username>[a-zA-Z0-9_\-]+)/,
         :org_user_rm,
+        restrict_to: [ :admins ],
         comamnd: true,
         confirmation: { allow_self: false },
         help: {
@@ -99,6 +103,7 @@ module Lita
       route(
         /#{LitaGithub::R::A_REG}org\s+?eject(?<org>\s+?[a-zA-Z0-9_\-]+)?(?<username>\s+?[a-zA-Z0-9_\-]+)/,
         :org_eject_user,
+        restrict_to: [ :admins ],
         command: true,
         confirmation: { allow_self: false },
         help: {

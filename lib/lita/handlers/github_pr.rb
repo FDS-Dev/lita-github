@@ -45,6 +45,7 @@ module Lita
       route(
         /(?:#{LitaGithub::R::A_REG}(?:pr merge|shipit)|shipit)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#(?<pr>\d+?)$/,
         :pr_merge,
+        restrict_to: [ :shippers ],
         command: true,
         confirmation: true,
         help: {

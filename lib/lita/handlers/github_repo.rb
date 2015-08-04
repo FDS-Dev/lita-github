@@ -40,6 +40,7 @@ module Lita
       route(
         /#{LitaGithub::R::A_REG}repo\s+?(?:create|new)\s+?#{LitaGithub::R::REPO_REGEX}.*$/,
         :repo_create,
+        restrict_to: [ :admins ],
         command: true,
         help: {
           'gh repo create PagerDuty/lita-github private:true team:heckman' =>
@@ -52,6 +53,7 @@ module Lita
       route(
         /#{LitaGithub::R::A_REG}repo\s+?delete\s+?#{LitaGithub::R::REPO_REGEX}/,
         :repo_delete,
+        restrict_to: [ :admins ],
         command: true,
         confirmation: true,
         help: {
@@ -71,6 +73,7 @@ module Lita
       route(
         /#{LitaGithub::R::A_REG}repo\s+?rename\s+?#{LitaGithub::R::REPO_REGEX}\s+?#{LitaGithub::R::REPO_NAME_REGEX}/,
         :repo_rename,
+        restrict_to: [ :admins ],
         command: true,
         confirmation: true,
         help: {
@@ -93,6 +96,7 @@ module Lita
       route(
         /#{LitaGithub::R::A_REG}repo\s+?team\s+?(?<action>add|rm)\s+?(?<team>[a-zA-Z0-9_\-]+?)(\s+?(?:to|from))?\s+?#{LitaGithub::R::REPO_REGEX}/,
         :repo_team_router,
+        restrict_to: [ :admins ],
         command: true,
         confirmation: true,
         help: {

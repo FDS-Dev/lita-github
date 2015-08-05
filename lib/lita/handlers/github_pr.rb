@@ -36,22 +36,36 @@ module Lita
       on :loaded, :setup_octo # from LitaGithub::Octo
 
       route(
-        /#{LitaGithub::R::A_REG}pr\s+?info\s+?#{LitaGithub::R::REPO_REGEX}\s+?#(?<pr>\d+?)$/,
+        /#{LitaGithub::R::A_REG}pr\s+?info\s+?#{LitaGithub::R::REPO_REGEX}\s+?(?<pr>\d+?)$/,
         :pr_info,
         command: true,
-        help: { 'gh pr info PagerDuty/lita-github #42' => 'show some information about the pull request' }
+        help: { 'gh pr info PagerDuty/lita-github 42' => 'show some information about the pull request' }
       )
 
       route(
-        /(?:#{LitaGithub::R::A_REG}(?:pr merge|shipit)|shipit)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#(?<pr>\d+?)$/,
+        /#{LitaGithub::R::A_REG}pr\s+?label\s+?#{LitaGithub::R::REPO_REGEX}\s+?(?<pr>\d+?)$/,
+        :pr_add_label,
+        command: true,
+        help: { 'gh pr label PagerDuty/lita-github 42 <label>' => 'add a label to a pull request' }
+      )
+
+      route(
+        /#{LitaGithub::R::A_REG}pr\s+?rmlabel\s+?#{LitaGithub::R::REPO_REGEX}\s+?(?<pr>\d+?)$/,
+        :pr_rm_label,
+        command: true,
+        help: { 'gh pr rmlabel PagerDuty/lita-github 42 <label>' => 'remove a label from a pull request' }
+      )
+
+      route(
+        /(?:#{LitaGithub::R::A_REG}(?:pr merge|shipit)|shipit)\s+?#{LitaGithub::R::REPO_REGEX}\s+?(?<pr>\d+?)$/,
         :pr_merge,
         restrict_to: [ :shippers ],
         command: true,
         confirmation: true,
         help: {
-          'gh shipit PagerDuty/lita-github #42' => 'ship it!',
-          'gh pr merge PagerDuty/lita-github #42' => 'ship it!',
-          'shipit PagerDuty/lita-github #42' => 'ship it!'
+          'gh shipit PagerDuty/lita-github 42' => 'ship it!',
+          'gh pr merge PagerDuty/lita-github 42' => 'ship it!',
+          'shipit PagerDuty/lita-github 42' => 'ship it!'
         }
       )
 

@@ -39,8 +39,6 @@ module Lita
 
       route(
         /#{LitaGithub::R::A_REG}repo\s+?(?:create|new)\s+?#{LitaGithub::R::REPO_REGEX}.*$/,
-        :repo_create,
-        restrict_to: [ :admins ],
         command: true,
         help: {
           'gh repo create PagerDuty/lita-github private:true team:heckman' =>
@@ -48,7 +46,14 @@ module Lita
           'gh repo new PagerDuty/lita-github' =>
             'create new repo using the default privacy/team settings'
         }
-      )
+      ) do |resp|
+        auth = Lita::Robot.new.auth
+        if auth.groups_with_users[:superdooper].include? resp.user
+          repo_create(resp)
+        else
+          response.reply("You are not authorized to perform this action")
+        end
+      end
 
       route(
         /#{LitaGithub::R::A_REG}repo\s+?delete\s+?#{LitaGithub::R::REPO_REGEX}/,
@@ -128,6 +133,7 @@ module Lita
         end
 
         opts = extrapolate_create_opts(opts_parse(response.message.body), org)
+
 
         response.reply(create_repo(org, repo, opts))
       end

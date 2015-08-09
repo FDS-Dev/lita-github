@@ -29,6 +29,10 @@ describe Lita::Handlers::GithubPR, lita_handler: true do
   it { is_expected.to route_command('gh pr info GrapeDuty/lita-test #42').to(:pr_info) }
   it { is_expected.to route_command('gh pr info lita-test #42').to(:pr_info) }
 
+  # pr_label command routing
+  it { is_expected.to route_command('gh pr label lita-test #42 somelabel').to(:pr_add_label) }
+  it { is_expected.to route_command('gh pr rmlabel lita-test #42 somelabel').to(:pr_rm_label) }
+
   # pr_list command routing
   it { is_expected.to route_command('gh pr list GrapeDuty/lita-test').to(:pr_list) }
   it { is_expected.to route_command('gh pr list lita-test').to(:pr_list) }

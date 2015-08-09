@@ -50,8 +50,6 @@ module Lita
       route(
         # /#{LitaGithub::R::A_REG}org\s+?team\s+?add(?<org>\s+?[a-zA-Z0-9_\-]+)?(?<perm>\s+?[a-zA-Z]+)\s+?(?<name>.*)$/,
         /#{LitaGithub::R::A_REG}org\s+?team\s+?add(?<org>\s+?[a-zA-Z0-9_\-]+)?/,
-        :org_team_add,
-        restrict_to: [ :admins ],
         command: true,
         confirmation: true,
         help: {
@@ -59,51 +57,67 @@ module Lita
           'gh org team add PagerDuty name:Leads perms:pull' => 'add a "Leads" team with admin permissions',
           'gh org team add PagerDuty name:Ops perms:push' => 'add an "Ops" team with push permissions'
         }
-      )
+      ) do |resp|
+        if auth.user_in_group?(resp.user, :admin)
+          org_team_add(resp)
+        else
+          resp.reply('You are not authorized to perform this action')
+        end
+      end
       # rubocop:enable Metrics/LineLength
 
       route(
         /#{LitaGithub::R::A_REG}org\s+?team\s+?rm(?<org>\s+?[a-zA-Z0-9_\-]+)?(?<team>\s+?[a-zA-Z0-9_\-]+)/,
-        :org_team_rm,
-        restrict_to: [ :admins ],
         command: true,
         confirmation: true,
         help: {
           'gh org team rm PagerDuty ops' => 'delete the Operations team',
           'gh org team rm PagerDuty 42' => 'delete the team with id 42'
         }
-      )
+      ) do |resp|
+        if auth.user_in_group?(resp.user, :admin)
+          org_team_rm(resp)
+        else
+          resp.reply('You are not authorized to perform this action')
+        end
+      end
 
       # rubocop:disable Metrics/LineLength
       route(
         /#{LitaGithub::R::A_REG}org\s+?user\s+?add(?<org>\s+?[a-zA-Z0-9_\-]+)?(?<team>\s?[a-zA-Z0-9_\-]+)\s+?(?<username>[a-zA-Z0-9_\-]+)/,
-        :org_user_add,
-        restrict_to: [ :admins ],
         command: true,
         confirmation: { allow_self: false },
         help: {
           'gh org user add PagerDuty everyone theckman' => 'add the user theckman to the PagerDuty/everyone team -- this requires confirmation from another user. NOTE: This will add the member to the organization if they are not already!!',
           'gh org user add PagerDuty 42 theckman' => "same as above, except with the team's ID instead of the slug"
         }
-      )
+      ) do |resp|
+        if auth.user_in_group?(resp.user, :admin)
+          org_user_add(resp)
+        else
+          resp.reply('You are not authorized to perform this action')
+        end
+      end
 
       route(
         /#{LitaGithub::R::A_REG}org\s+?user\s+?rm(?<org>\s+?[a-zA-Z0-9_\-]+)?(?<team>\s?[a-zA-Z0-9_\-]+)\s+?(?<username>[a-zA-Z0-9_\-]+)/,
-        :org_user_rm,
-        restrict_to: [ :admins ],
         comamnd: true,
         confirmation: { allow_self: false },
         help: {
           'gh org team rm PagerDuty everyone theckman' => 'remove the user theckman from the PagerDuty/everyone team, if this is their last team will remove them from the org. Requires confirmation from another user.',
           'gh org team rm PagerDuty 42 theckman' => "same as above, except with the team's ID instead of the slug"
         }
-      )
+      ) do |resp|
+        if auth.user_in_group?(resp.user, :admin)
+          org_user_rm(resp)
+        else
+          resp.reply('You are not authorized to perform this action')
+        end
+      end
       # rubocop:enable Metrics/LineLength
 
       route(
         /#{LitaGithub::R::A_REG}org\s+?eject(?<org>\s+?[a-zA-Z0-9_\-]+)?(?<username>\s+?[a-zA-Z0-9_\-]+)/,
-        :org_eject_user,
-        restrict_to: [ :admins ],
         command: true,
         confirmation: { allow_self: false },
         help: {
@@ -111,7 +125,13 @@ module Lita
                                                'this is meant for someone leaving the organization. Requires ' \
                                                'confirmation from another user.'
         }
-      )
+      ) do |resp|
+        if auth.user_in_group?(resp.user, :admin)
+          org_eject_user(resp)
+        else
+          resp.reply('You are not authorized to perform this action')
+        end
+      end
 
       def org_teams_list(response)
         md = response.match_data

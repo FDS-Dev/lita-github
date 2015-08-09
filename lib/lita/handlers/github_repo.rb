@@ -15,6 +15,7 @@
 # limitations under the License.
 
 require 'uri'
+require 'pp'
 require 'lita-github/r'
 require 'lita-github/general'
 require 'lita-github/config'
@@ -22,6 +23,7 @@ require 'lita-github/octo'
 require 'lita-github/org'
 require 'lita-github/repo'
 require 'lita-github/filters'
+require 'lita-github/auth'
 
 module Lita
   # Lita Handler
@@ -34,77 +36,77 @@ module Lita
       include LitaGithub::Org     # Github handler common-use Organization methods
       include LitaGithub::Repo    # Github handler common-use Repository methods
       include LitaGithub::Filters # Github handler common-use method filters
+      include LitaGithub::Auth    # Github handler common-use method filters
 
       on :loaded, :setup_octo # from LitaGithub::Octo
 
       route(
-        /#{LitaGithub::R::A_REG}repo\s+?(?:create|new)\s+?#{LitaGithub::R::REPO_REGEX}.*$/,
+        /repo\s+?(?:create|new)\s+?#{LitaGithub::R::REPO_REGEX}.*$/,
         :repo_create,
         command: true,
         help: {
-          'gh repo create PagerDuty/lita-github private:true team:heckman' =>
+          'repo create PagerDuty/lita-github private:true team:heckman' =>
             'Create the PagerDuty/lita-github repo, make it private, use team with "heckman" slug',
-          'gh repo new PagerDuty/lita-github' =>
+          'repo new PagerDuty/lita-github' =>
             'create new repo using the default privacy/team settings'
         }
       )
-
       route(
-        /#{LitaGithub::R::A_REG}repo\s+?delete\s+?#{LitaGithub::R::REPO_REGEX}/,
+        /repo\s+?delete\s+?#{LitaGithub::R::REPO_REGEX}/,
         :repo_delete,
         command: true,
         confirmation: true,
         help: {
-          'gh repo delete PagerDuty/lita-github' => 'Delete the PagerDuty/lita-github repo'
+          'repo delete PagerDuty/lita-github' => 'Delete the PagerDuty/lita-github repo'
         }
       )
 
       route(
-        /#{LitaGithub::R::A_REG}repo\s+?info\s+?#{LitaGithub::R::REPO_REGEX}/,
+        /repo\s+?info\s+?#{LitaGithub::R::REPO_REGEX}/,
         :repo_info,
         command: true,
         help: {
-          'gh repo info PagerDuty/lita-github' => 'Display some information about the repo'
+          'repo info PagerDuty/lita-github' => 'Display some information about the repo'
         }
       )
 
       route(
-        /#{LitaGithub::R::A_REG}repo\s+?rename\s+?#{LitaGithub::R::REPO_REGEX}\s+?#{LitaGithub::R::REPO_NAME_REGEX}/,
+        /repo\s+?rename\s+?#{LitaGithub::R::REPO_REGEX}\s+?#{LitaGithub::R::REPO_NAME_REGEX}/,
         :repo_rename,
         command: true,
         confirmation: true,
         help: {
-          'gh repo rename PagerDuty/lita-github better-lita-github' =>
+          'repo rename PagerDuty/lita-github better-lita-github' =>
             'Rename the PagerDuty/lita-github repo to PagerDuty/better-lita-github'
         }
       )
 
       route(
-        /#{LitaGithub::R::A_REG}repo\s+?(teams|team\s+?list)\s+?#{LitaGithub::R::REPO_REGEX}/,
+        /repo\s+?(teams|team\s+?list)\s+?#{LitaGithub::R::REPO_REGEX}/,
         :repo_teams_list,
         command: true,
         help: {
-          'gh repo teams PagerDuty/lita-github' => 'list the teams allowed to to access a repo',
-          'gh repo team list PagerDuty/lita-github' => 'list the teams allowed to to access a repo'
+          'repo teams PagerDuty/lita-github' => 'list the teams allowed to to access a repo',
+          'repo team list PagerDuty/lita-github' => 'list the teams allowed to to access a repo'
         }
       )
 
       # rubocop:disable Metrics/LineLength
       route(
-        /#{LitaGithub::R::A_REG}repo\s+?team\s+?(?<action>add|rm)\s+?(?<team>[a-zA-Z0-9_\-]+?)(\s+?(?:to|from))?\s+?#{LitaGithub::R::REPO_REGEX}/,
+        /repo\s+?team\s+?(?<action>add|rm)\s+?(?<team>[a-zA-Z0-9_\-]+?)(\s+?(?:to|from))?\s+?#{LitaGithub::R::REPO_REGEX}/,
         :repo_team_router,
         command: true,
         confirmation: true,
         help: {
-          'gh repo team add everyone PagerDuty/lita-test' => 'add a team using slug to your repo',
-          'gh repo team add 42 PagerDuty/lita-test' => 'add a team using ID to your repo',
-          'gh repo team rm everyone PagerDuty/lita-test' => 'remove a team using slug to your repo',
-          'gh repo team rm 42 PagerDuty/lita-test' => 'remove a team using ID to your repo'
+          'repo team add everyone PagerDuty/lita-test' => 'add a team using slug to your repo',
+          'repo team add 42 PagerDuty/lita-test' => 'add a team using ID to your repo',
+          'repo team rm everyone PagerDuty/lita-test' => 'remove a team using slug to your repo',
+          'repo team rm 42 PagerDuty/lita-test' => 'remove a team using ID to your repo'
         }
       )
 
       route(
-        /#{LitaGithub::R::A_REG}repo\s+update\s+?(?<field>description|homepage)\s+?#{LitaGithub::R::REPO_REGEX}\s+?(?<content>.*)$/,
+        /repo\s+update\s+?(?<field>description|homepage)\s+?#{LitaGithub::R::REPO_REGEX}\s+?(?<content>.*)$/,
         :repo_update_router,
         command: true,
         confirmation: true,
@@ -116,6 +118,7 @@ module Lita
 
       def repo_create(response)
         return response.reply(t('method_disabled')) if func_disabled?(__method__)
+        return false unless permit_user?(__method__, response)
 
         org, repo = repo_match(response.match_data)
 
@@ -130,6 +133,7 @@ module Lita
 
       def repo_rename(response)
         return response.reply(t('method_disabled')) if func_disabled?(__method__)
+        return false unless permit_user?(__method__, response)
         org, repo = repo_match(response.match_data)
         new_repo = response.match_data['repo_name']
 
@@ -140,6 +144,7 @@ module Lita
 
       def repo_delete(response)
         return response.reply(t('method_disabled')) if func_disabled?(__method__)
+        return false unless permit_user?(__method__, response)
 
         org, repo = repo_match(response.match_data)
 
@@ -318,6 +323,9 @@ module Lita
         reply = nil
         begin
           octo.create_repository(repo, opts)
+        rescue
+          repo_url = "https://github.com/#{full_name}"
+          reply = t('repo_create.fail', org: org, repo: repo, repo_url: repo_url)
         ensure
           if repo?(full_name)
             repo_url = "https://github.com/#{full_name}"

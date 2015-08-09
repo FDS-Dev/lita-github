@@ -65,6 +65,7 @@ en:
           mergeable: " | Mergeable: %{mergeable}\n"
           commit_info: "Head: %{pr_sha_short} | Commits: %{commits} (+%{plus}/-%{minus}) :: %{compare}\n"
           comments: "PR Comments: %{comments} | Code Comments: %{review_comments}\n"
+          labels: "PR Labels: %{labels}\n"
         pr_merge:
           pass: "Merged pull request #%{pr} from %{org}/%{branch}\n%{title}"
           fail: "Failed trying to merge PR #%{pr} (%{title}) :: %{url}\nMessage: %{msg}"

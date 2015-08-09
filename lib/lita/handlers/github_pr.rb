@@ -20,6 +20,7 @@ require 'lita-github/octo'
 require 'lita-github/org'
 require 'lita-github/repo'
 require 'lita-github/filters'
+require 'lita-github/auth'
 
 module Lita
   # Lita handler
@@ -32,35 +33,73 @@ module Lita
       include LitaGithub::Org     # Github handler common-use Organization methods
       include LitaGithub::Repo    # Github handler common-use Repository methods
       include LitaGithub::Filters # Github handler common-use method filters
+      include LitaGithub::Auth    # Github handler common-use Auth methods
 
       on :loaded, :setup_octo # from LitaGithub::Octo
 
       route(
-        /#{LitaGithub::R::A_REG}pr\s+?info\s+?#{LitaGithub::R::REPO_REGEX}\s+?#(?<pr>\d+?)$/,
+        /pr\s+?info\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
         :pr_info,
         command: true,
-        help: { 'gh pr info PagerDuty/lita-github #42' => 'show some information about the pull request' }
+        help: { 'pr info lita-github 42' => 'show some information about the pull request' }
       )
 
       route(
-        /(?:#{LitaGithub::R::A_REG}(?:pr merge|shipit)|shipit)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#(?<pr>\d+?)$/,
+        /pr\s+?label\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)\s+?(?<label>[[:graph:]]+?)$/,
+        :pr_add_label,
+        command: true,
+        help: { 'pr label lita-github 42 <label>' => 'add a label to a pull request' }
+      )
+
+      route(
+        /pr\s+?rmlabel\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
+        :pr_rm_label,
+        command: true,
+        help: { 'pr rmlabel lita-github 42 <label>' => 'remove a label from a pull request' }
+      )
+
+      route(
+        /(?:pr merge|shipit)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
         :pr_merge,
         command: true,
         confirmation: true,
         help: {
-          'gh shipit PagerDuty/lita-github #42' => 'ship it!',
-          'gh pr merge PagerDuty/lita-github #42' => 'ship it!',
-          'shipit PagerDuty/lita-github #42' => 'ship it!'
+          'shipit lita-github 42' => 'ship it!',
+          'pr merge lita-github 42' => 'ship it!'
         }
       )
 
       route(
-        /#{LitaGithub::R::A_REG}pr\s+?list\s+?#{LitaGithub::R::REPO_REGEX}/, :pr_list,
+        /pr\s+?list\s+?#{LitaGithub::R::REPO_REGEX}/, :pr_list,
         command: true,
         help: {
-          'gh pr list PagerDuty/lita-github' => 'list the 10 oldest and newest PRs'
+          'pr list PagerDuty/lita-github' => 'list the 10 oldest and newest PRs'
         }
       )
+
+      def pr_add_label(response)
+        org, repo, pr, label = pr_label_match(response.match_data)
+        full_name = rpo(org, repo)
+
+        pr_h = pull_request(full_name, pr)
+        return response.reply(t('not_found', pr: pr, org: org, repo: repo)) if pr_h[:fail] && pr_h[:not_found]
+
+        octo.add_labels_to_an_issue(rpo(org, repo), pr, label)
+        labels = octo.labels_for_issue(rpo(org, repo), pr, label)
+        reply = "Labels: #{labels}"
+        response.reply(reply)
+      end
+
+      def pr_get_labels(response)
+        org, repo, pr, label = pr_label_match(response.match_data)
+        full_name = rpo(org, repo)
+
+        pr_h = pull_request(full_name, pr)
+        return response.reply(t('not_found', pr: pr, org: org, repo: repo)) if pr_h[:fail] && pr_h[:not_found]
+
+        labels = octo.labels_for_issue(full_name, pr, label)
+        response.reply("PR: #{pr} Labels: #{labels}")
+      end
 
       # rubocop:disable Metrics/CyclomaticComplexity
       # rubocop:disable Metrics/PerceivedComplexity
@@ -82,13 +121,39 @@ module Lita
         response.reply(reply)
       end
 
+      def jenkins_checks_pass?(response)
+        return true
+      end
+
+      def pr_checks_pass?(response, pr_h)
+        org, repo, pr = pr_match(response.match_data)
+        full_name = rpo(org, repo)
+        info = build_pr_info(pr_h[:pr], full_name)
+
+        if info[:build_status] != "success"
+          response.reply("PR does not show successful test completion")
+          response.reply("Merging will require an admin")
+          return false
+        end
+        return true
+      end
+
       def pr_merge(response)
+        # Is this function disabled?
         return response.reply(t('method_disabled')) if func_disabled?(__method__)
+        # Check that the user is permitted to perform this action
+        return false unless permit_user?(__method__, response)
+
         org, repo, pr = pr_match(response.match_data)
         fullname = rpo(org, repo)
 
         pr_h = pull_request(fullname, pr)
+        return false unless pr_checks_pass?(response, pr_h)
+
         return response.reply(t('not_found', pr: pr, org: org, repo: repo)) if pr_h[:fail] && pr_h[:not_found]
+
+        # Check that Jenkins checks pass
+        return false unless jenkins_checks_pass?(response)
 
         branch = pr_h[:pr][:head][:ref]
         title = pr_h[:pr][:title]
@@ -138,6 +203,10 @@ module Lita
         [organization(md['org']), md['repo'], md['pr']]
       end
 
+      def pr_label_match(md)
+        [organization(md['org']), md['repo'], md['pr'], md['label']]
+      end
+
       def pull_request(full_name, pr_num)
         ret = { fail: false, not_found: false }
         begin
@@ -171,6 +240,13 @@ module Lita
         end
         # rubocop:enable Lint/HandleExceptions
         status
+      end
+
+      def build_pr_label!(info, pr_obj)
+        info[:title]            = pr_obj[:title]
+        info[:number]           = pr_obj[:number]
+        info[:url]              = pr_obj[:html_url]
+        info
       end
 
       def build_pr_header!(info, pr_obj)

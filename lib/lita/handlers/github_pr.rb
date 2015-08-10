@@ -45,26 +45,25 @@ module Lita
       )
 
       route(
-        /pr\s+?label\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)\s+?(?<label>[[:graph:]]+?)$/,
-        :pr_add_label,
+        /(?:pr assign)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)\s+?(?<user>[[:alnum:]]+?)$/,
+        :pr_assign,
         command: true,
-        help: { 'pr label lita-github 42 <label>' => 'add a label to a pull request' }
+        help: { 'pr assign lita-github 42 adnichols' => 'Assign a PR to someone' }
       )
 
       route(
-        /pr\s+?rmlabel\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
-        :pr_rm_label,
+        /(?:pr unassign)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
+        :pr_unassign,
         command: true,
-        help: { 'pr rmlabel lita-github 42 <label>' => 'remove a label from a pull request' }
+        help: { 'pr unassign lita-github 42' => 'Unassign a PR' }
       )
 
       route(
-        /(?:pr merge|shipit)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
+        /(?:pr merge)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
         :pr_merge,
         command: true,
         confirmation: true,
         help: {
-          'shipit lita-github 42' => 'ship it!',
           'pr merge lita-github 42' => 'ship it!'
         }
       )
@@ -77,28 +76,47 @@ module Lita
         }
       )
 
-      def pr_add_label(response)
-        org, repo, pr, label = pr_label_match(response.match_data)
+      def pr_assign(response)
+        org, repo, pr, user = pr_assign_match(response.match_data)
         full_name = rpo(org, repo)
 
         pr_h = pull_request(full_name, pr)
         return response.reply(t('not_found', pr: pr, org: org, repo: repo)) if pr_h[:fail] && pr_h[:not_found]
 
-        octo.add_labels_to_an_issue(rpo(org, repo), pr, label)
-        labels = octo.labels_for_issue(rpo(org, repo), pr, label)
-        reply = "Labels: #{labels}"
-        response.reply(reply)
+        begin
+          updated_pr = octo.update_issue(full_name, pr, :assignee => user)
+        rescue
+          response.reply("Failed to assign #{pr} to #{user}")
+          return false
+        end
+
+        if updated_pr[:assignee][:login] == user
+          response.reply("PR #{pr} assigned to #{user}")
+        else
+          response.reply("Failed to assign #{pr} to #{user}")
+        end
       end
 
-      def pr_get_labels(response)
-        org, repo, pr, label = pr_label_match(response.match_data)
+      def pr_unassign(response)
+        org, repo, pr = pr_match(response.match_data)
         full_name = rpo(org, repo)
 
         pr_h = pull_request(full_name, pr)
         return response.reply(t('not_found', pr: pr, org: org, repo: repo)) if pr_h[:fail] && pr_h[:not_found]
 
-        labels = octo.labels_for_issue(full_name, pr, label)
-        response.reply("PR: #{pr} Labels: #{labels}")
+        begin
+          updated_pr = octo.update_issue(full_name, pr, :assignee => nil)
+        rescue
+          response.reply("Failed to unassign #{pr} (R)")
+          return false
+        end
+        response.reply("#{updated_pr.inspect}")
+
+        if updated_pr[:assignee] == nil
+          response.reply("PR #{pr} unassigned")
+        else
+          response.reply("Failed to unassign #{pr}")
+        end
       end
 
       # rubocop:disable Metrics/CyclomaticComplexity
@@ -207,6 +225,10 @@ module Lita
         [organization(md['org']), md['repo'], md['pr'], md['label']]
       end
 
+      def pr_assign_match(md)
+        [organization(md['org']), md['repo'], md['pr'], md['user']]
+      end
+
       def pull_request(full_name, pr_num)
         ret = { fail: false, not_found: false }
         begin
@@ -269,8 +291,11 @@ module Lita
 
       def build_pr_status!(info, pr_obj, full_name)
         user = octo.user(pr_obj[:user][:login])
+        assignee = pr_obj[:assignee][:login]
+        assignee = "None" if assignee.nil?
         info[:user]             = pr_obj[:user][:login]
         info[:user]             << " (#{user[:name]})" if user.key?(:name)
+        info[:assignee]         = assignee
         info[:state]            = pr_obj[:merged] ? :merged : pr_obj[:state].to_sym
         info[:state_str]        = pr_obj[:merged] ? 'Merged' : pr_obj[:state].capitalize
         info[:build_status]     = octo.combined_status(full_name, info[:pr_sha])[:state]

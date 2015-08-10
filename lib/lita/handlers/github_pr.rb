@@ -45,26 +45,25 @@ module Lita
       )
 
       route(
-        /(?:pr assign|shipit)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)\s+?(?<user>[[:alnum:]]+?)$/,
+        /(?:pr assign)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)\s+?(?<user>[[:alnum:]]+?)$/,
         :pr_assign,
         command: true,
         help: { 'pr assign lita-github 42 adnichols' => 'Assign a PR to someone' }
       )
 
       route(
-        /(?:pr unassign|shipit)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
+        /(?:pr unassign)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
         :pr_unassign,
         command: true,
         help: { 'pr unassign lita-github 42' => 'Unassign a PR' }
       )
 
       route(
-        /(?:pr merge|shipit)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
+        /(?:pr merge)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
         :pr_merge,
         command: true,
         confirmation: true,
         help: {
-          'shipit lita-github 42' => 'ship it!',
           'pr merge lita-github 42' => 'ship it!'
         }
       )

@@ -110,7 +110,6 @@ module Lita
           response.reply("Failed to unassign #{pr} (R)")
           return false
         end
-        response.reply("#{updated_pr.inspect}")
 
         if updated_pr[:assignee] == nil
           response.reply("PR #{pr} unassigned")

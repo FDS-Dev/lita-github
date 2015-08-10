@@ -60,7 +60,7 @@ en:
         pr_info:
           header: "%{repo} #%{number}: '%{title}' :: %{url}\n"
           header_long: "%{repo} #%{number}: '%{title}' opened by %{u} :: %{url}\n"
-          status: "Opened By: %{user} | State: %{state_str} | Build: %{build_status}"
+          status: "Opened By: %{user} | State: %{state_str} | Build: %{build_status} | Assignee: %{assignee}"
           merged: " | Merged By: %{merged_by}\n"
           mergeable: " | Mergeable: %{mergeable}\n"
           commit_info: "Head: %{pr_sha_short} | Commits: %{commits} (+%{plus}/-%{minus}) :: %{compare}\n"

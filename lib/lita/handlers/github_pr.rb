@@ -290,8 +290,11 @@ module Lita
 
       def build_pr_status!(info, pr_obj, full_name)
         user = octo.user(pr_obj[:user][:login])
-        assignee = pr_obj[:assignee][:login]
-        assignee = "None" if assignee.nil?
+        if not pr_obj[:assignee].nil?
+          assignee = pr_obj[:assignee][:login]
+        else
+          assignee = "None"
+        end
         info[:user]             = pr_obj[:user][:login]
         info[:user]             << " (#{user[:name]})" if user.key?(:name)
         info[:assignee]         = assignee

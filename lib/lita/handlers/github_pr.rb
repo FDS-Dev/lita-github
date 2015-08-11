@@ -45,7 +45,7 @@ module Lita
       )
 
       route(
-        /(?:pr assign)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)\s+?(?<user>[[:alnum:]]+?)$/,
+        /(?:pr assign)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)\s+?(?<user>[[:graph:]]+?)$/,
         :pr_assign,
         command: true,
         help: { 'pr assign lita-github 42 adnichols' => 'Assign a PR to someone' }

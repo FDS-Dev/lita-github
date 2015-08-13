@@ -116,14 +116,14 @@ module Lita
         begin
           updated_pr = octo.update_issue(full_name, pr, :assignee => user)
         rescue
-          response.reply("Failed to assign #{pr} to #{user}")
+          response.reply("Failed to assign #{pr} to #{user} #{pr_h[:pr][:html_url]}")
           return false
         end
 
         if updated_pr[:assignee][:login] == user
-          response.reply("PR #{pr} assigned to #{user}")
+          response.reply("PR #{pr} assigned to #{user} #{pr_h[:pr][:html_url]}")
         else
-          response.reply("Failed to assign #{pr} to #{user}")
+          response.reply("Failed to assign #{pr} to #{user} #{pr_h[:pr][:html_url]}")
         end
       end
 
@@ -142,9 +142,9 @@ module Lita
         end
 
         if updated_pr[:assignee] == nil
-          response.reply("PR #{pr} unassigned")
+          response.reply("PR #{pr} unassigned #{pr_h[:pr][:html_url]}")
         else
-          response.reply("Failed to unassign #{pr}")
+          response.reply("Failed to unassign #{pr} #{pr_h[:pr][:html_url]}")
         end
       end
 
@@ -181,7 +181,7 @@ module Lita
 
       def pr_get_state(response, pr_h)
         # Init this
-        pr_state_init
+        pr_state_init(pr_h)
 
         # Gather all our results
         pr_test_pass!(response, pr_h)
@@ -209,18 +209,20 @@ module Lita
 
       def pr_show_state(response)
         p = self.class.pr_state
-        r = "PR Check: Test Pass? #{p[:test]}"
-        r << " | Review? #{p[:review]} - Reviewer: #{p[:reviewer]}"
-        r << " | Jenkins: "
+        r = "PR #{p[:id]}: Passed Tests? #{p[:test]}"
+        r << " | Review Complete? #{p[:review]} - Reviewer: #{p[:reviewer]}"
+        r << " | master ok for merge?: #{p[:jenkins]} ["
         p[:jobs].each do |name, result|
-          r << "#{name} (#{result}) "
+          r << " #{name}(#{result}) "
         end
-        r << "Result? #{p[:jenkins]}"
+        r << "] | #{p[:url]}"
         response.reply(r)
       end
 
-      def pr_state_init
+      def pr_state_init(pr_h)
         self.class.pr_state = {}
+        self.class.pr_state[:id] = pr_h[:pr][:number]
+        self.class.pr_state[:url] = pr_h[:pr][:html_url]
       end
 
       def pr_inspect(response)

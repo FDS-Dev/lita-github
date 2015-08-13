@@ -44,7 +44,9 @@ module LitaGithub
       gr = {
         :repo_create => :ghadmins,
         :repo_delete => :ghadmins,
-        :pr_merge => :shippers
+        :pr_merge => :shippers,
+        :pr_inspect => :ghadmins,
+        :pr_comments => :ghadmins
       }
       gr[method]
     end

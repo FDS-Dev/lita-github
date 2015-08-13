@@ -21,6 +21,7 @@ require 'lita-github/org'
 require 'lita-github/repo'
 require 'lita-github/filters'
 require 'lita-github/auth'
+require 'json'
 
 module Lita
   # Lita handler
@@ -37,6 +38,14 @@ module Lita
 
       on :loaded, :setup_octo # from LitaGithub::Octo
 
+      class << self
+        attr_accessor :pr_state
+      end
+
+      def self.default_config(config)
+        self.pr_state = {}
+      end
+
       route(
         /pr\s+?info\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
         :pr_info,
@@ -49,6 +58,27 @@ module Lita
         :pr_assign,
         command: true,
         help: { 'pr assign lita-github 42 adnichols' => 'Assign a PR to someone' }
+      )
+
+      route(
+        /(?:pr check)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
+        :pr_check,
+        command: true,
+        help: { 'pr check lita-github 42' => 'Check if a PR is ok to merge' }
+      )
+
+      route(
+        /(?:pr inspect)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
+        :pr_inspect,
+        command: true,
+        help: { 'pr inspect lita-github 42' => 'view all PR attributes' }
+      )
+
+      route(
+        /(?:pr comments)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
+        :pr_comments,
+        command: true,
+        help: { 'pr comments lita-github 42' => 'view all PR comments' }
       )
 
       route(
@@ -138,21 +168,151 @@ module Lita
         response.reply(reply)
       end
 
-      def jenkins_checks_pass?(response)
-        return true
-      end
-
-      def pr_checks_pass?(response, pr_h)
+      def pr_check(response)
         org, repo, pr = pr_match(response.match_data)
         full_name = rpo(org, repo)
-        info = build_pr_info(pr_h[:pr], full_name)
 
-        if info[:build_status] != "success"
-          response.reply("PR does not show successful test completion")
-          response.reply("Merging will require an admin")
+        pr_h = pull_request(full_name, pr)
+        return response.reply(t('not_found', pr: pr, org: org, repo: repo)) if pr_h[:fail] && pr_h[:not_found]
+
+        pr_get_state(response, pr_h)
+        pr_show_state(response)
+      end
+
+      def pr_get_state(response, pr_h)
+        # Init this
+        pr_state_init
+
+        # Gather all our results
+        pr_test_pass!(response, pr_h)
+        pr_review_pass!(response, pr_h)
+        jenkins_checks_pass!
+      end
+
+      def pr_pre_merge_pass?(response, pr_h)
+        # Get our state
+        pr_get_state(response, pr_h)
+        p = self.class.pr_state
+        unless p[:test]
           return false
         end
-        return true
+
+        unless p[:review]
+          return false
+        end
+
+        unless p[:jenkins]
+          return false
+        end
+        true
+      end
+
+      def pr_show_state(response)
+        p = self.class.pr_state
+        r = "PR Check: Test Pass? #{p[:test]}"
+        r << " | Review? #{p[:review]} - Reviewer: #{p[:reviewer]}"
+        r << " | Jenkins: "
+        p[:jobs].each do |name, result|
+          r << "#{name} (#{result}) "
+        end
+        r << "Result? #{p[:jenkins]}"
+        response.reply(r)
+      end
+
+      def pr_state_init
+        self.class.pr_state = {}
+      end
+
+      def pr_inspect(response)
+        return false unless permit_user?(__method__, response)
+        org, repo, pr = pr_match(response.match_data)
+        full_name = rpo(org, repo)
+
+        pr_h = pull_request(full_name, pr)
+        Lita.logger.info(pr_h.inspect)
+      end
+
+      def pr_comments(response)
+        return false unless permit_user?(__method__, response)
+        org, repo, pr = pr_match(response.match_data)
+        full_name = rpo(org, repo)
+
+        issue_h = octo.issue_comments(full_name, pr)
+        Lita.logger.info(issue_h.inspect)
+      end
+
+      def jenkins_checks_pass!
+        self.class.pr_state[:jobs] = {}
+        self.class.pr_state[:jenkins] = true
+        config.jenkins_ci_jobs.each do |job|
+          self.class.pr_state[:jobs][job] = jenkins_check_job_result(job)
+          unless self.class.pr_state[:jobs][job] == 'passed'
+            self.class.pr_state[:jenkins] = false
+          end
+        end
+      end
+
+      def jenkins_check_job_result(query_job)
+        jenkins_jobs.each do |job|
+          if job['name'] == query_job
+            return jenkins_map_result(job['color'])
+          else
+            next
+          end
+        end
+        'notfound'
+      end
+
+      def jenkins_map_result(color)
+        case color
+        when 'blue'
+          return 'passing'
+        when /[a-z]+_anime/
+          return 'running'
+        else
+          return 'fail'
+        end
+      end
+
+      def jenkins_jobs
+        path = "#{config.jenkins_url}/api/json"
+        response = http.get(path)
+        JSON.parse(response.body)["jobs"]
+      end
+
+      def pr_test_pass!(response, pr_h)
+        org, repo, pr = pr_match(response.match_data)
+        full_name = rpo(org, repo)
+
+        build_status = octo.combined_status(full_name, pr_h[:pr][:head][:sha])[:state]
+        self.class.pr_state[:build_status] = build_status
+        if build_status == "success"
+          self.class.pr_state[:test] = true
+        else
+          self.class.pr_state[:test] = false
+        end
+      end
+
+      def pr_review_pass!(response, pr_h)
+        self.class.pr_state[:reviewer] = "None"
+        self.class.pr_state[:review] = false
+        org, repo, pr = pr_match(response.match_data)
+        full_name = rpo(org, repo)
+        # Get the original user
+        user = pr_h[:pr][:user][:login]
+
+        # Get all comments
+        issue_comments_h = octo.issue_comments(full_name, pr)
+        issue_comments_h.each do |comment|
+          if comment[:user][:login] != user
+            if comment[:body].match(/:\+1:/)
+              self.class.pr_state[:reviewer] = comment[:user][:login]
+              self.class.pr_state[:comment] = comment[:body]
+              self.class.pr_state[:review] = true
+              return
+            end
+          end
+        end
       end
 
       def pr_merge(response)
@@ -165,12 +325,19 @@ module Lita
         fullname = rpo(org, repo)
 
         pr_h = pull_request(fullname, pr)
-        return false unless pr_checks_pass?(response, pr_h)
 
         return response.reply(t('not_found', pr: pr, org: org, repo: repo)) if pr_h[:fail] && pr_h[:not_found]
 
-        # Check that Jenkins checks pass
-        return false unless jenkins_checks_pass?(response)
+        # Check that we are ok to merge
+        unless pr_pre_merge_pass?(response, pr_h)
+          response.reply("Pre-merge checks failed - will not merge PR")
+          pr_show_state(response)
+          return false
+        end
+
+        # Add comment about who requested merge
+        comment = "Merge triggered by #{response.user.name}"
+        octo.add_comment(fullname, pr, comment)
 
         branch = pr_h[:pr][:head][:ref]
         title = pr_h[:pr][:title]

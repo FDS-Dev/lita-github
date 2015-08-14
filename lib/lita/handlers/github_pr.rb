@@ -315,8 +315,8 @@ module Lita
         Lita.logger.info(issue_h.inspect)
       end
 
-      def pr_already_merged?
-        self.class.pr_state[:merged]
+      def pr_already_merged?(pr_h)
+        pr_h[:pr][:merged]
       end
 
       def jenkins_checks_pass!
@@ -413,7 +413,7 @@ module Lita
         return response.reply(t('not_found', pr: pr, org: org, repo: repo)) if pr_h[:fail] && pr_h[:not_found]
 
         # Check to make sure the PR isn't already merged
-        if pr_already_merged?
+        if pr_already_merged?(pr_h)
           response.reply("PR #{pr} is already merged yo!")
           return false
         end

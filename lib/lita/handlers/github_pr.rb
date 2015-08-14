@@ -413,7 +413,7 @@ module Lita
         return response.reply(t('not_found', pr: pr, org: org, repo: repo)) if pr_h[:fail] && pr_h[:not_found]
 
         # Check to make sure the PR isn't already merged
-        if pr_already_merged?(pr_h)
+        if pr_already_merged?
           response.reply("PR #{pr} is already merged yo!")
           return false
         end

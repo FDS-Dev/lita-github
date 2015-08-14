@@ -286,7 +286,7 @@ module Lita
         p[:jobs].each do |name, result|
           r << " #{name}(#{result}) "
         end
-        r << "] | #{p[:url]}"
+        r << "] | #{p[:url]} | Already merged? #{p[:merged]}"
         response.reply(r)
       end
 
@@ -294,6 +294,7 @@ module Lita
         self.class.pr_state = {}
         self.class.pr_state[:id] = pr_h[:pr][:number]
         self.class.pr_state[:url] = pr_h[:pr][:html_url]
+        self.class.pr_state[:merged] = pr_h[:pr][:merged]
       end
 
       def pr_inspect(response)
@@ -312,6 +313,10 @@ module Lita
 
         issue_h = octo.issue_comments(full_name, pr)
         Lita.logger.info(issue_h.inspect)
+      end
+
+      def pr_already_merged?
+        self.class.pr_state[:merged]
       end
 
       def jenkins_checks_pass!
@@ -391,7 +396,10 @@ module Lita
       def pr_merge(response)
         # Is this function disabled?
         return response.reply(t('method_disabled')) if func_disabled?(__method__)
-        # Check that the user is permitted to perform this action
+
+        # Lockdown restricts merging to a limited group of folks - if lockdown
+        # is not enabled, anyone may trigger a merge - all pre-merge validation
+        # checks apply either way
         unless lockdown_status(response)[:state] == "disabled"
           return false unless permit_user?(__method__, response)
           response.reply("Lockdown presently enabled")
@@ -404,12 +412,19 @@ module Lita
 
         return response.reply(t('not_found', pr: pr, org: org, repo: repo)) if pr_h[:fail] && pr_h[:not_found]
 
-        # Check that we are ok to merge
+        # Check to make sure the PR isn't already merged
+        if pr_already_merged?(pr_h)
+          response.reply("PR #{pr} is already merged yo!")
+          return false
+        end
+
+        # Perform all pre-merge validation checks
         unless pr_pre_merge_pass?(response, pr_h)
           response.reply("Pre-merge checks failed - will not merge PR")
           pr_show_state(response)
           return false
         end
+
 
         # Add comment about who requested merge
         comment = "Merge triggered by #{response.user.name}"

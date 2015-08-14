@@ -46,7 +46,9 @@ module LitaGithub
         :repo_delete => :ghadmins,
         :pr_merge => :shippers,
         :pr_inspect => :ghadmins,
-        :pr_comments => :ghadmins
+        :pr_comments => :ghadmins,
+        :lockdown_enable => :ghadmins,
+        :lockdown_disable => :ghadmins
       }
       gr[method]
     end

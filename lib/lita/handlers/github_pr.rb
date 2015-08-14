@@ -82,6 +82,15 @@ module Lita
       )
 
       route(
+        /(?:pr lockdown)\s+?(?<command>[[:graph:]]+?)$/,
+        :pr_lockdown,
+        commands: true,
+        help: {
+          'pr lockdown [enable|disable|status]' => 'When locked, limit merging to admins'
+        }
+      )
+
+      route(
         /(?:pr unassign)\s+?#{LitaGithub::R::REPO_REGEX}\s+?#?(?<pr>\d+?)$/,
         :pr_unassign,
         command: true,
@@ -124,6 +133,68 @@ module Lita
           response.reply("PR #{pr} assigned to #{user} #{pr_h[:pr][:html_url]}")
         else
           response.reply("Failed to assign #{pr} to #{user} #{pr_h[:pr][:html_url]}")
+        end
+      end
+
+      def pr_lockdown(response)
+        command = response.match_data['command']
+        case command
+        when 'status'
+          state = lockdown_status(response)
+          if state[:state] == "enabled"
+            response.reply("Lockdown is ENABLED by #{state[:enabled_by]}")
+          else
+            response.reply("Lockdown is DISABLED by #{state[:disabled_by]}")
+          end
+
+        when 'enable'
+          if lockdown_enable(response)
+            response.reply("Lockdown enabled")
+          else
+            response.reply("Failed to enable lockdown")
+          end
+
+        when 'disable'
+          if lockdown_disable(response)
+            response.reply("Lockdown disabled")
+          else
+            response.reply("Failed to disable lockdown")
+          end
+
+        else
+          response.reply("Unknown lockdown command #{command}")
+        end
+      end
+
+      def lockdown_status(response)
+        s = {}
+        s[:state] = redis.get("lockdown:state")
+        s[:enabled_by] = redis.get("lockdown:enabled_by")
+        s[:disabled_by] = redis.get("lockdown:disabled_by")
+        return s
+      end
+
+      def lockdown_enable(response)
+        return false unless permit_user?(__method__, response)
+        redis.set("lockdown:state", "enabled")
+        redis.del("lockdown:disabled_by")
+        redis.set("lockdown:enabled_by", response.user.name)
+        if redis.get("lockdown:state") == "enabled"
+          return true
+        else
+          return false
+        end
+      end
+
+      def lockdown_disable(response)
+        return false unless permit_user?(__method__, response)
+        redis.set("lockdown:state", "disabled")
+        redis.del("lockdown:enabled_by")
+        redis.set("lockdown:disabled_by", response.user.name)
+        if redis.get("lockdown:state") == "disabled"
+          return true
+        else
+          return false
         end
       end
 
@@ -321,7 +392,10 @@ module Lita
         # Is this function disabled?
         return response.reply(t('method_disabled')) if func_disabled?(__method__)
         # Check that the user is permitted to perform this action
-        return false unless permit_user?(__method__, response)
+        unless lockdown_status(response)[:state] == "disabled"
+          return false unless permit_user?(__method__, response)
+          response.reply("Lockdown presently enabled")
+        end
 
         org, repo, pr = pr_match(response.match_data)
         fullname = rpo(org, repo)

@@ -284,16 +284,22 @@ module Lita
 
       def pr_show_state(response)
         p = self.class.pr_state
-        r = "PR #{p[:id]}: Passed Tests? #{p[:test]}"
-        r << " | Review Complete? #{p[:review]} - Reviewer: #{p[:reviewer]}"
-        r << " | long_system_test ok for merge?: #{p[:jenkins_lst]} ["
-        p[:lst_jobs].each do |name, result|
-          r << " #{name}(#{result}) "
-        end
-        r << " | master ok for merge?: #{p[:jenkins]} ["
-        p[:jobs].each do |name, result|
-          r << " #{name}(#{result}) "
-        end
+        r = "PR #{p[:id]} Passed CI: #{p[:test]}"
+        r << " | Reviewed: #{p[:review]} by #{p[:reviewer]}"
+        r << " | long_system_test passing: #{p[:jenkins_lst]}"
+        if p[:jenkins_lst] == false
+          r << "["
+          p[:lst_jobs].each do |name, result|
+            r << " #{name}(#{result}) "
+          end
+          r << "]"
+        r << " | master ok for merge?: #{p[:jenkins]}
+        r << "["
+        if p[:jenkins] == false
+          p[:jobs].each do |name, result|
+            r << " #{name}(#{result}) "
+          end
+          r << "]"
         r << "] | #{p[:url]} | Already merged? #{p[:merged]}"
         response.reply(r)
       end

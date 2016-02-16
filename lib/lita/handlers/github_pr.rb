@@ -294,9 +294,9 @@ module Lita
           end
           r << ")"
         end
-        r << " | Build on Master Commit passing: #{p[:jenkins]}"
+        r << " | master open for merge: #{p[:jenkins]}"
         if p[:jenkins] == false
-          r << "("
+          r << " ("
           p[:jobs].each do |name, result|
             r << "#{result}"
           end

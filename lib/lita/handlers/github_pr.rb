@@ -275,6 +275,10 @@ module Lita
         unless p[:jenkins]
           return false
         end
+
+        unless p[:jenkins_lst]
+          return false
+        end
         true
       end
 

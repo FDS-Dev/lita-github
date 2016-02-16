@@ -293,13 +293,15 @@ module Lita
             r << " #{name}(#{result}) "
           end
           r << "]"
+        end
         r << " | master ok for merge?: #{p[:jenkins]}
-        r << "["
         if p[:jenkins] == false
+          r << "["
           p[:jobs].each do |name, result|
             r << " #{name}(#{result}) "
           end
           r << "]"
+        end
         r << "] | #{p[:url]} | Already merged? #{p[:merged]}"
         response.reply(r)
       end

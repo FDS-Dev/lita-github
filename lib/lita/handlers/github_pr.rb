@@ -360,7 +360,7 @@ module Lita
         case color
         when 'blue'
           return 'passing'
-        when 'red'
+        when 'red','red_anime'
           return 'fail'
         else
           return 'running'

@@ -282,6 +282,10 @@ module Lita
         p = self.class.pr_state
         r = "PR #{p[:id]}: Passed Tests? #{p[:test]}"
         r << " | Review Complete? #{p[:review]} - Reviewer: #{p[:reviewer]}"
+        r << " | long_system_test ok for merge?: #{p[:jenkins_lst]} ["
+        p[:lst_jobs].each do |name, result|
+          r << " #{name}(#{result}) "
+        end
         r << " | master ok for merge?: #{p[:jenkins]} ["
         p[:jobs].each do |name, result|
           r << " #{name}(#{result}) "
@@ -321,11 +325,18 @@ module Lita
 
       def jenkins_checks_pass!
         self.class.pr_state[:jobs] = {}
+        self.class.pr_state[:lst_jobs] = {}
         self.class.pr_state[:jenkins] = true
         config.jenkins_ci_jobs.each do |job|
           self.class.pr_state[:jobs][job] = jenkins_check_job_result(job)
           unless self.class.pr_state[:jobs][job] == 'passing'
             self.class.pr_state[:jenkins] = false
+          end
+        end
+        config.jenkins_lst_jobs.each do |job|
+          self.class.pr_state[:lst_jobs][job] = jenkins_check_job_result(job)
+          unless self.class.pr_state[:lst_jobs][job] == 'passing' || self.class.pr_state[:lst_jobs][job] == 'running'
+            self.class.pr_state[:jenkins_lst] = false
           end
         end
       end

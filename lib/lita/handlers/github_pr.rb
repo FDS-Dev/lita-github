@@ -288,21 +288,21 @@ module Lita
         r << " | Reviewed: #{p[:review]} by #{p[:reviewer]}"
         r << " | long_system_test passing: #{p[:jenkins_lst]}"
         if p[:jenkins_lst] == false
-          r << "["
+          r << " ("
           p[:lst_jobs].each do |name, result|
-            r << " #{name}(#{result}) "
+            r << "#{result}"
           end
-          r << "]"
+          r << ")"
         end
         r << " | Build on Master Commit passing: #{p[:jenkins]}"
         if p[:jenkins] == false
-          r << "["
+          r << "("
           p[:jobs].each do |name, result|
-            r << " #{name}(#{result}) "
+            r << "#{result}"
           end
-          r << "]"
+          r << ")"
         end
-        r << "] | #{p[:url]} | Already merged? #{p[:merged]}"
+        r << " | #{p[:url]} | Already merged? #{p[:merged]}"
         response.reply(r)
       end
 

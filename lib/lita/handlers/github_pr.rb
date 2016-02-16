@@ -339,6 +339,7 @@ module Lita
         self.class.pr_state[:jobs] = {}
         self.class.pr_state[:lst_jobs] = {}
         self.class.pr_state[:jenkins] = true
+        self.class.pr_state[:jenkins_lst] = true
         config.jenkins_ci_jobs.each do |job|
           self.class.pr_state[:jobs][job] = jenkins_check_job_result(job)
           unless self.class.pr_state[:jobs][job] == 'passing'

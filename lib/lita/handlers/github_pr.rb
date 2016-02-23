@@ -306,18 +306,18 @@ module Lita
 
       def pr_show_state(response)
         p = self.class.pr_state
-        r = "PR #{p[:id]}\n"
-        r << "#{p[:url]}\n"
-        r << "| Already merged: #{p[:merged]} |\n"
-        r << "| Reviewed: #{p[:review]} by #{p[:reviewer]} |\n"
+        r = "PR #{p[:id]} \n"
+        r << "#{p[:url]} \n"
+        r << "Already merged: #{p[:merged]} \n"
+        r << "Reviewed: #{p[:review]} by #{p[:reviewer]} \n"
 
         # Check if git repo is check-review only. Return if so.
         if pr_review_check_only?(response)
            return response.reply(r)
         end
 
-        r << "| Passed CI: #{p[:test]} |\n"
-        r << "| Passed long_system_test: #{p[:jenkins_lst]}"
+        r << "Passed CI: #{p[:test]} \n"
+        r << "Passed long_system_test: #{p[:jenkins_lst]} "
         if p[:jenkins_lst] == false
           r << " ("
           p[:lst_jobs].each do |name, result|
@@ -325,8 +325,8 @@ module Lita
           end
           r << ")"
         end
-        r << " |\n"
-        r << "| Master open for merge: #{p[:jenkins]}"
+        r << " \n"
+        r << "Master open for merge: #{p[:jenkins]} "
         if p[:jenkins] == false
           r << " ("
           p[:jobs].each do |name, result|
@@ -334,7 +334,7 @@ module Lita
           end
           r << ")"
         end
-        r << " |\n"
+        r << " \n"
         response.reply(r)
       end
 

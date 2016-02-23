@@ -325,7 +325,7 @@ module Lita
           end
           r << ")"
         end
-        r << "|\n"
+        r << " |\n"
         r << "| Master open for merge: #{p[:jenkins]}"
         if p[:jenkins] == false
           r << " ("
@@ -334,7 +334,7 @@ module Lita
           end
           r << ")"
         end
-        r << "|\n"
+        r << " |\n"
         response.reply(r)
       end
 

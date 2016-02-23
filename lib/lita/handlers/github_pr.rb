@@ -323,16 +323,18 @@ module Lita
           p[:lst_jobs].each do |name, result|
             r << "#{result}"
           end
-          r << ") |\n"
+          r << ")"
         end
+        r << "|\n"
         r << "| Master open for merge: #{p[:jenkins]}"
         if p[:jenkins] == false
           r << " ("
           p[:jobs].each do |name, result|
             r << "#{result}"
           end
-          r << ") |\n"
+          r << ")"
         end
+        r << "|\n"
         response.reply(r)
       end
 

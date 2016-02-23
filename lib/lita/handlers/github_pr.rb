@@ -239,6 +239,17 @@ module Lita
         response.reply(reply)
       end
 
+
+      # This method checks if a PR is from a git-repo
+      # that only requires review-status check.
+      def pr_review_check_only?(response)
+        org, repo, pr = pr_match(response.match_data)
+        if config.check_review_status_only_repos.include? repo
+           return true
+        end
+        false
+      end
+
       def pr_check(response)
         org, repo, pr = pr_match(response.match_data)
         full_name = rpo(org, repo)
@@ -254,9 +265,15 @@ module Lita
         # Init this
         pr_state_init(pr_h)
 
+        pr_review_pass!(response, pr_h)
+
+        # Check if git repo is check-review only. Return if so.
+        if pr_review_check_only?(response)
+           return
+        end
+
         # Gather all our results
         pr_test_pass!(response, pr_h)
-        pr_review_pass!(response, pr_h)
         jenkins_checks_pass!
       end
 
@@ -264,11 +281,16 @@ module Lita
         # Get our state
         pr_get_state(response, pr_h)
         p = self.class.pr_state
-        unless p[:test]
+        unless p[:review]
           return false
         end
 
-        unless p[:review]
+        # Check if git repo is check-review only. Return if so.
+        if pr_review_check_only?(response)
+           return true
+        end
+
+        unless p[:test]
           return false
         end
 
@@ -284,25 +306,33 @@ module Lita
 
       def pr_show_state(response)
         p = self.class.pr_state
-        r = "PR #{p[:id]} Passed CI: #{p[:test]}"
-        r << " | Reviewed: #{p[:review]} by #{p[:reviewer]}"
-        r << " | long_system_test passing: #{p[:jenkins_lst]}"
+        r = "PR #{p[:id]}\n"
+        r << "#{p[:url]}\n"
+        r << "| Already merged: #{p[:merged]} |\n"
+        r << "| Reviewed: #{p[:review]} by #{p[:reviewer]} |\n"
+
+        # Check if git repo is check-review only. Return if so.
+        if pr_review_check_only?(response)
+           return response.reply(r)
+        end
+
+        r << "| Passed CI: #{p[:test]} |\n"
+        r << "| Passed long_system_test: #{p[:jenkins_lst]}"
         if p[:jenkins_lst] == false
           r << " ("
           p[:lst_jobs].each do |name, result|
             r << "#{result}"
           end
-          r << ")"
+          r << ") |\n"
         end
-        r << " | master open for merge: #{p[:jenkins]}"
+        r << "| Master open for merge: #{p[:jenkins]}"
         if p[:jenkins] == false
           r << " ("
           p[:jobs].each do |name, result|
             r << "#{result}"
           end
-          r << ")"
+          r << ") |\n"
         end
-        r << " | #{p[:url]} | Already merged? #{p[:merged]}"
         response.reply(r)
       end
 

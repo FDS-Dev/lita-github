@@ -307,12 +307,12 @@ module Lita
       def pr_show_state(response)
         p = self.class.pr_state
         r = "PR #{p[:id]} \n"
-        r << "#{p[:url]} \n"
         r << "Already merged: #{p[:merged]} \n"
         r << "Reviewed: #{p[:review]} by #{p[:reviewer]} \n"
 
         # Check if git repo is check-review only. Return if so.
         if pr_review_check_only?(response)
+           r << "#{p[:url]} \n"
            return response.reply(r)
         end
 
@@ -335,6 +335,7 @@ module Lita
           r << ")"
         end
         r << " \n"
+        r << "#{p[:url]} \n"
         response.reply(r)
       end
 

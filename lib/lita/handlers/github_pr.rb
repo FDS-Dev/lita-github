@@ -439,7 +439,9 @@ module Lita
         issue_comments_h = octo.issue_comments(full_name, pr)
         issue_comments_h.each do |comment|
           if comment[:user][:login] != user
-            if comment[:body].match(/:\+1:/)
+            # also match thumbs up hex reprentation - http://www.iemoji.com/view/emoji/56/people/thumbs-up-sign"
+            comment_hex=comment[:body].each_byte.map { |b| b.to_s(16) }.join
+            if comment[:body].match(/:\+1:/) || comment_hex.match(/f09f918d/)
               self.class.pr_state[:reviewer] = comment[:user][:login]
               self.class.pr_state[:comment] = comment[:body]
               self.class.pr_state[:review] = true
